@@ -6,7 +6,8 @@ output:
   html_document:
     code_folding: hide
     fig_caption: yes
-    fig_height: 4.5
+    fig_width: 9
+    fig_height: 5
     highlight: tango
     number_sections: yes
     theme: cosmo
@@ -17,6 +18,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# stop R using scientific notation for numbers. 
+options(scipen = 999)
 ```
 
 # Introduction
@@ -29,7 +32,7 @@ First, let's download all libraries that will be used, as well as the bike shari
 
 ## Libraries
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
 # Data visualization
 #install.packages('ggplot2')
 library('ggplot2')
@@ -48,9 +51,9 @@ library('tidyr')
 ```
 
 ## Database Import
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
 
-filename <- "chicago.csv"
+filename <- "chicago.txt"
 
 df <- read.csv(filename,sep=",")
 class(df)
@@ -63,7 +66,7 @@ class(df)
 
 Let's check how many rows and columns our dataset have, as well as check the summary of all the variables:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
 
 dim(df)
 
@@ -86,7 +89,7 @@ Our dataframe has around 1,5M rows and 8 columns. The variables goes as followin
 
 Let's take a look at the first 20 rows of the dataset:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
 head(df,20)
 ```
 
@@ -94,29 +97,50 @@ head(df,20)
 
 How are the rides distributed along each day of the week? Is there a difference between weekdays and weekends?
 
-```{r, message = FALSE}
-df$day <- weekdays(as.Date(df$Start.Time))
+```{r, warning=FALSE, message = FALSE}
+#find which weekday each date represent
+df$day <- weekdays(as.Date(df$Start.Time)) 
 
+#group by weekday and summarise the Trip Duration by counting the occurrences
 grouped_per_weekday <- df %>%
               group_by(day) %>%
               summarise(count_trip_duration = round(length(Trip.Duration),0))
 
-ggplot(grouped_per_weekday, aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')), 
-                           y = count_trip_duration)) + geom_col() + 
-  geom_text(aes(label=count_trip_duration), position=position_dodge(width=0.9), vjust=-0.25) + ggtitle("Count of Trips per Weekday") + xlab("Number of Trips") + ylab("Weekday")
+#barplot - count of trips per weekday
+ggplot(grouped_per_weekday, 
+       aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday',
+                            'Thursday','Friday','Saturday')), 
+           y = count_trip_duration)) +
+        geom_col() +
+        geom_text(aes(label=count_trip_duration), 
+                    position=position_dodge(width=0.9), 
+                    vjust=-0.25) +
+        ggtitle("Count of Trips per Weekday") +
+        xlab("Number of Trips") +
+        ylab("Weekday")
 
 ```
 
 
-```{r, message = FALSE}
+```{r,warning=FALSE, message = FALSE}
 
+#group by weekday and summarise the Trip Duration by the mean of trip duration
 grouped_per_weekday <- df %>%
               group_by(day) %>%
               summarise(mean_trip_duration = round(mean(Trip.Duration),0))
 
-ggplot(grouped_per_weekday, aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')), 
-                           y = mean_trip_duration)) + geom_col() + 
-  geom_text(aes(label=mean_trip_duration), position=position_dodge(width=0.9), vjust=-0.25) + ggtitle("Average Trip Duration (in seconds) per Weekday") + xlab("Average Trip Duration") + ylab("Weekday")
+#barplot - mean of trip duration per weekday
+ggplot(grouped_per_weekday, 
+       aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday',
+                            'Thursday','Friday','Saturday')), 
+           y = mean_trip_duration)) +
+       geom_col() +
+       geom_text(aes(label=mean_trip_duration), 
+                   position=position_dodge(width=0.9), 
+                   vjust=-0.25) +
+       ggtitle("Average Trip Duration (in seconds) per Weekday") +
+       xlab("Average Trip Duration (in seconds)") +
+       ylab("Weekday")
 
 ```
 
@@ -124,46 +148,56 @@ Although there are slightly fewer bike trips during the weekend, the trip durati
 
 ## Trip duration
 
-```{r, message = FALSE}
-ggplot(df, aes(Trip.Duration)) + geom_histogram() + ggtitle("Histogram for Trip Duration")
+```{r, warning=FALSE,message = FALSE}
+#histogram = frequency of each trip duration (in seconds)
+ggplot(df, aes(Trip.Duration)) +
+        geom_histogram() +
+        ggtitle("Histogram for Trip Duration (in seconds)") +
+        xlab("Frequency") +
+        ylab("Trip Duration (in seconds)")
 ```
 
 Since the trip duration data is over-dispersed, let's apply a logarithm and a square root transformation on it.
 
-```{r, message = FALSE}
-p1 <- ggplot(aes(x = Trip.Duration), data = df) + geom_histogram() + ggtitle("Histogram for Trip Duration")
-p2 <- p1 + scale_x_log10() + ggtitle("Histogram for Trip Duration with Log10 normalization")
-p3 <- p1 + scale_x_sqrt() + ggtitle("Histogram for Trip Duration with Sqrt normalization")
+```{r, warning=FALSE,message = FALSE}
+#histogram = frequency of each trip duration (in seconds)
+p1 <- ggplot(aes(x = Trip.Duration), data = df) +
+      geom_histogram() +
+      ggtitle("Histogram for Trip Duration (in seconds)") +
+      xlab("Frequency") +
+      ylab("Trip Duration")
+#transformed histogram based on previous one using Log10
+p2 <- p1 + scale_x_log10() +
+         ggtitle("Histogram for Trip Duration with Log10 normalization (in seconds)")
+#transformed histogram based on the first one using sqrt
+p3 <- p1 + scale_x_sqrt() +
+         ggtitle("Histogram for Trip Duration with Sqrt normalization (in seconds)")
 
 grid.arrange(p1,p2,p3,ncol=1)
 ```
 
 ## Gender
 
-Let's check how many male riders we have:
+Let's check how many male riders we have: `r count(df[df$Gender == 'Male',])`
 
-```{r, message = FALSE}
-
-count(df[df$Gender == 'Male',])
-```
-
-What about female riders?
-```{r, message = FALSE}
-count(df[df$Gender == 'Female',])
-```
+What about female riders? `r count(df[df$Gender == 'Female',])`
 
 Let's check how each Gender compare considering their average trip duration:
-```{r, message = FALSE}
+```{r,warning=FALSE, message = FALSE}
 by(df$Trip.Duration,df$Gender,summary)
 
 ```
 
 Although there's significantly more male riders than female ones, the female have longer trip durations on average. We can check how they compare using a frequency polygon:
 
-```{r, message = FALSE}
-ggplot(aes(x = Trip.Duration), data = subset(df, Gender %in% c('Male','Female'))) +
-  geom_freqpoly(aes(color = Gender)) +
-  scale_x_log10() + ggtitle("Frequency Polygon Comparing Gender based on Trip Duration")
+```{r, warning=FALSE, message = FALSE}
+#plot -> frequency polygon of trip duration per gender
+ggplot(aes(x = Trip.Duration), 
+       data = subset(df, Gender %in% c('Male','Female'))) +
+      geom_freqpoly(aes(color = Gender)) +
+      scale_x_log10() +
+      ggtitle("Frequency Polygon Comparing Gender based on Trip Duration (in seconds)") +
+      xlab("Frequency")
 ```
 
 We can see that the female normal distribution is slightly more left-skewed than the male curve, validating what we saw earlier. 
@@ -171,8 +205,13 @@ We can see that the female normal distribution is slightly more left-skewed than
 ## Birth year
 
 
-```{r, message = FALSE}
-ggplot(df, aes(Birth.Year)) + geom_histogram() + ggtitle("Birth Year Histogram")
+```{r, warning=FALSE, message = FALSE}
+#histogram -> birth year
+ggplot(df, aes(Birth.Year)) + geom_histogram() + 
+      ggtitle("Birth Year Histogram") +     
+      xlab("Frequency") +
+      ylab("Birth Year")
+
 ```
 
 Most users birth year falls between 1950 and 2000, with a peak around 1980-1990. 
@@ -180,31 +219,48 @@ Most users birth year falls between 1950 and 2000, with a peak around 1980-1990.
 Distribution of types of user:
 
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+
+#group by user type
 grouped_users <- df %>%
               group_by(User.Type) %>%
               summarise(count_trips = length(Trip.Duration))
 
-ggplot(grouped_users, aes(User.Type,count_trips)) + geom_col() + 
-  geom_text(aes(label=count_trips), position=position_dodge(width=0.9), vjust=-0.25) + ggtitle("Count of each User Type")
+#bar plot -> count of trips per user type
+ggplot(grouped_users, aes(User.Type,count_trips)) +
+      geom_col() +
+      geom_text(aes(label=count_trips), 
+                  position=position_dodge(width=0.9), 
+                  vjust=-0.25) +
+      ggtitle("Count of each User Type") +
+      xlab("Count of Trips") +
+      ylab("User Type")
 ```
 
 We can see that most of the riders are actual subscribers.
 
 Using the plotly package, we can creat the trip duration per birth year of users, also showing the start and end station. Since the chart is heavy for the amout of data, we will use a 10k sample of the data.
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+#set seed since a sample will be used
 set.seed(1)
+#make a sample of 10K
 sample_df <- df[sample(nrow(df), 10000), ]
-plot_ly(data = sample_df, x = sample_df$Trip.Duration , y = sample_df$Birth.Year,
+#scatter-plot -> trip duration distribution per birth year 
+plot_ly(data = sample_df, 
+        x = sample_df$Trip.Duration , 
+        y = sample_df$Birth.Year,
         marker = list(size = 10,
                        color = 'rgba(255, 182, 193, .9)',
                        line = list(color = 'rgba(152, 0, 0, .8)',width = 2)),
-        text = ~paste("Start Station: ", sample_df$Start.Station, '$<br>Finish Station:', sample_df$End.Station)
+        text = ~paste("Start Station: ", 
+                      sample_df$Start.Station, 
+                      '$<br>Finish Station:',
+                      sample_df$End.Station)
         ) %>%
-  layout(title = 'Trip duration distribution',
-         yaxis = list(zeroline = FALSE),
-         xaxis = list(zeroline = FALSE))
+  layout(title = 'Trip duration distribution (in seconds) per Birth Year',
+         yaxis = list(zeroline = FALSE, title = "Birth Year"),
+         xaxis = list(zeroline = FALSE,title = 'Trip Duration (in seconds)'))
 ```
 
 We can see that the majority of trips stay under the 10k seconds threshold and user age doesn't really seem to have an impact on it. The ride with most duration departed from Clinton st and lasted for more than 74K seconds (or more than 20 hours!). It's probably a user who forgot to return the bike =D 
@@ -212,78 +268,128 @@ We can see that the majority of trips stay under the 10k seconds threshold and u
 
 Since the Female riders seems to have longer trips on average on age hasn't prove to have much different on trip duration, let's try grouping our data by age and gender and check the average trip duration for the group:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+#group by Birth Year and gender, summarising trip duration using mean
 grouped_df <- df %>%
               group_by(Birth.Year,Gender) %>%
               summarise(mean_trip_duration = mean(Trip.Duration)) %>%
               ungroup() %>%
               arrange(Birth.Year)
 
+#line plot: mean of trip duration distributed by birthyear e per gender
 ggplot(aes(x = Birth.Year, y = mean_trip_duration),
        data = subset(grouped_df, Gender %in% c('Male','Female'))) +
-       geom_line(aes(color = Gender), stat = 'summary', fun.y = median) + ggtitle("Mean Trip Duration per Gender and Distributed by Birth Year")
+      geom_line(aes(color = Gender), stat = 'summary', fun.y = median) +
+      ggtitle("Mean Trip Duration per Gender and Distributed by Birth Year") +
+      xlab("Birth Year") +
+      ylab("Mean of Trip Duration (in seconds)")
 ```
 
-For the birthday range where we have most of the datapoints (between 1950 and 2000), we can see that Female riders consistently have a higher trip duration than Male riders.
+For the birthday range where we have most of the datapoints (between 1950 and 2000), apparently Female riders consistently have a higher trip duration than Male riders. We can better evaluate by plotting the actual data with the mean summary statistics overlaid:
+
+```{r, warning=FALSE, message = FALSE}
+# scatterplot - birth year and trip duration, by gender (with mean overlaid)
+ggplot(aes(x = Birth.Year, y = Trip.Duration),
+       data = subset(df, Gender %in% c('Male','Female'))) +
+      geom_point(aes(color = Gender)) +
+      geom_line(aes(color = Gender), stat = 'summary', 
+                 fun.y = mean, size = 1) +
+      geom_point(aes(fill = Gender), stat = 'summary', fun.y = mean, 
+                   shape = 23, color = "black", size = 2) +
+      ggtitle("Mean Trip Duration per Gender and Distributed by Birth Year") +
+      xlab("Birth Year") +
+      ylab("Mean of Trip Duration (in seconds)")
+```
+
+The peaks in the original graph are due to years with very few observations (and so may not be considered representative), but the range between 1950 and 2000 is still relevant on data volume.
 
 Let's check the same analysis, but for customers x subscribers:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+#group by Birth Year and user type, summarising trip duration using mean
 grouped_df <- df %>%
               group_by(Birth.Year,User.Type) %>%
               summarise(mean_trip_duration = mean(Trip.Duration)) %>%
               ungroup() %>%
               arrange(Birth.Year)
-
+#line plot: mean of trip duration distributed by birthyear e per user type
 ggplot(aes(x = Birth.Year, y = mean_trip_duration),
        data = subset(grouped_df, User.Type %in% c('Customer','Subscriber'))) +
-       geom_line(aes(color = User.Type), stat = 'summary', fun.y = median) + ggtitle("Mean Trip Duration per User Type and Distributed by Birth Year")
+    geom_line(aes(color = User.Type), stat = 'summary', fun.y = median) +
+    ggtitle("Mean Trip Duration per User Type and Distributed by Birth Year") +
+    xlab("Birth Year") +
+    ylab("Mean of Trip Duration (in seconds)")
 ```
 
-Customers have longer trip than subscribers. Could that be a consequence of more female riders as customers than subscribers?
+Customers, at first, seem to have longer trip than subscribers. Let's plot the actual data again to make sure it's representative:
+
+```{r, warning=FALSE, message = FALSE}
+# scatterplot - birth year and trip duration, by user type (with mean overlaid)
+ggplot(aes(x = Birth.Year, y = Trip.Duration),
+       data = subset(df, User.Type %in% c('Customer','Subscriber'))) +
+    geom_point(aes(color = User.Type)) +
+    geom_line(aes(color = User.Type), stat = 'summary', fun.y = mean, 
+                size = 1) +
+    geom_point(aes(fill = User.Type), stat = 'summary', fun.y = mean, 
+                 shape = 23, color = "black", size = 2) +
+    ggtitle("Mean Trip Duration per User Type and Distributed by Birth Year") +
+    xlab("Birth Year") +
+    ylab("Mean of Trip Duration (in seconds)")
+```
+
+Those higher means were based on few datapoints and, therefore, not really representative.
 
 ## Stations
 
 Finally, let's check which are the 5 most popular stations on both starting and finishing rides:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+#group by start station and summarise by count of trips
 grouped_start <- df %>%
                  group_by(Start.Station) %>%
                  summarise (no_rows = length(Start.Station))
 
+#find the cumulative count of trips
 grouped_start <- grouped_start [order (-grouped_start$no_rows),] %>%
-                 mutate (Pareto = cumsum(grouped_start$no_rows/sum(grouped_start$no_rows)))
-                 
+      mutate (Pareto = cumsum(grouped_start$no_rows/sum(grouped_start$no_rows)))
+
+#get the top 5                 
 grouped_start <- head(grouped_start,5)
 
+#group by end station and summarise by count of trips
 grouped_end <- df %>%
                  group_by(End.Station) %>%
                  summarise (no_rows = length(End.Station))
 
+#find the cumulative count of trips
 grouped_end <- grouped_end [order (-grouped_end$no_rows),] %>%
-               mutate (Pareto = cumsum(grouped_end$no_rows/sum(grouped_end$no_rows)))
+          mutate (Pareto = cumsum(grouped_end$no_rows/sum(grouped_end$no_rows)))
                
+#get the top 5                 
 grouped_end <- head(grouped_end,5)
 
-end_point = 0.5 + nrow(grouped_start) + nrow(grouped_start)-1
+#increase margin for y labels
+par(mar=c(4,12,4,4))
+# bar plot - most used start stations
+barplot(grouped_start$no_rows,
+        horiz=TRUE,
+    density=NA,
+    xlab="Cummulative Counts",
+    axes=TRUE, names.arg=grouped_start$Start.Station, cex.names=0.5, las=1,
+    main = "5 Most Popular Start Stations")
+title(ylab="Stations", mgp=c(11,1,0), cex.lab=1.2)
 
-barplot(grouped_start$no_rows,  
-             width = 1, space = 1.0, border = NA, axes = F,
-             ylim = c(0, 1.05 * max(grouped_start$no_rows, na.rm = T)), 
-             ylab = "Cummulative Counts" , cex.names = 0.7, 
-             main = "5 Most Popular Start Stations")
 
-text(seq(1.5,end_point,by=2), par("usr")[3]-0.25, 
-     srt = 45, adj= 1, xpd = TRUE,labels = paste(grouped_start$Start.Station), cex=0.65)
-
-barplot(grouped_end$no_rows,  
-             width = 1, space = 1.0, border = NA, axes = F,
-             ylim = c(0, 1.05 * max(grouped_end$no_rows, na.rm = T)), 
-             ylab = "Cummulative Counts" , cex.names = 0.7, las=2, 
-             main = "5 Most Popular End Stations")
-
-text(seq(1.5,end_point,by=2), par("usr")[3]-0.25, 
-     srt = 45, adj= 1, xpd = TRUE,labels = paste(grouped_end$End.Station), cex=0.65)
+#increase margin for y labels
+par(mar=c(4,12,4,4))
+# bar plot - most used end stations
+barplot(grouped_end$no_rows,
+        horiz=TRUE,
+    density=NA,
+    xlab="Cummulative Counts",
+    axes=TRUE, names.arg=grouped_end$End.Station, cex.names=0.5, las=1,
+    main = "5 Most Popular End Stations")
+title(ylab="Stations", mgp=c(11,1,0), cex.lab=1.2)
 
 ```
 
@@ -291,7 +397,7 @@ Interesting! The 2 most popular start stations are also the 2 most popular end s
 
 Let's check how many (if any) trips start and finish in the same station by adding a new column to our dataset:
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
 df <- df %>%
       mutate (Same.Station = identical(df$End.Station,df$Start.Station))
 sum(df$Same.Station)
@@ -303,41 +409,69 @@ There are not trips starting and ending at the same station.
 
 I've chosen the charts that compare trip duration vs age for both gender and user type since they are the most insigthful charts as described later in the reflection. Also the trip duration distribution using plotly shows how concentrated the trips are and how age have a low influence in this specific variable.
 
-```{r, message = FALSE}
+```{r, warning=FALSE, message = FALSE}
+#group by Birth Year and gender, summarising trip duration using mean
 grouped_df <- df %>%
               group_by(Birth.Year,Gender) %>%
               summarise(mean_trip_duration = mean(Trip.Duration)) %>%
               ungroup() %>%
               arrange(Birth.Year)
 
+#line plot: mean of trip duration distributed by birthyear e per gender
 ggplot(aes(x = Birth.Year, y = mean_trip_duration),
        data = subset(grouped_df, Gender %in% c('Male','Female'))) +
-       geom_line(aes(color = Gender), stat = 'summary', fun.y = median)
+      geom_line(aes(color = Gender), stat = 'summary', fun.y = median) +
+      ggtitle("Mean Trip Duration per Gender and Distributed by Birth Year") +
+      xlab("Birth Year") +
+      ylab("Mean of Trip Duration (in seconds)")
 ```
 
-```{r, message = FALSE}
+For the birthday range where we have most of the datapoints (between 1950 and 2000), apparently Female riders consistently have a higher trip duration than Male riders.
+
+```{r, warning=FALSE, message = FALSE}
 grouped_per_weekday <- df %>%
               group_by(day) %>%
               summarise(mean_trip_duration = round(mean(Trip.Duration),0))
 
-ggplot(grouped_per_weekday, aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')), 
-                           y = mean_trip_duration)) + geom_col() + 
-  geom_text(aes(label=mean_trip_duration), position=position_dodge(width=0.9), vjust=-0.25) + ggtitle("Average Trip Duration (in seconds) per Weekday") + xlab("Average Trip Duration") + ylab("Weekday")
+#barplot - mean of trip duration per weekday
+ggplot(grouped_per_weekday, 
+       aes(x = factor(day,c('Sunday','Monday','Tuesday','Wednesday',
+                            'Thursday','Friday','Saturday')), 
+           y = mean_trip_duration)) +
+       geom_col() +
+       geom_text(aes(label=mean_trip_duration), 
+                   position=position_dodge(width=0.9), 
+                   vjust=-0.25) +
+       ggtitle("Average Trip Duration (in seconds) per Weekday") +
+       xlab("Average Trip Duration (in seconds)") +
+       ylab("Weekday")
 ```
 
-```{r, message = FALSE}
+The trip duration during weekends is considerably higher when compared to week days. 
+
+```{r, warning=FALSE, message = FALSE}
+#set seed since a sample will be used
 set.seed(1)
+#make a sample of 10K
 sample_df <- df[sample(nrow(df), 10000), ]
-plot_ly(data = sample_df, x = sample_df$Trip.Duration , y = sample_df$Birth.Year,
+#scatter-plot -> trip duration distribution per birth year 
+plot_ly(data = sample_df, 
+        x = sample_df$Trip.Duration , 
+        y = sample_df$Birth.Year,
         marker = list(size = 10,
                        color = 'rgba(255, 182, 193, .9)',
                        line = list(color = 'rgba(152, 0, 0, .8)',width = 2)),
-        text = ~paste("Start Station: ", sample_df$Start.Station, '$<br>Finish Station:', sample_df$End.Station)
+        text = ~paste("Start Station: ", 
+                      sample_df$Start.Station, 
+                      '$<br>Finish Station:',
+                      sample_df$End.Station)
         ) %>%
-  layout(title = 'Trip duration distribution',
-         yaxis = list(zeroline = FALSE),
-         xaxis = list(zeroline = FALSE))
+  layout(title = 'Trip duration distribution (in seconds) per Birth Year',
+         yaxis = list(zeroline = FALSE, title = "Birth Year"),
+         xaxis = list(zeroline = FALSE,title = 'Trip Duration (in seconds)'))
 ```
+
+We can see that the majority of trips stay under the 10k seconds threshold and user age doesn't really seem to have an impact on it. The ride with most duration departed from Clinton st and lasted for more than 74K seconds (or more than 20 hours!). It's probably a user who forgot to return the bike =D 
 
 # Reflection
 
@@ -348,3 +482,5 @@ First, regarding which day of the week has the most number of bike rides, it is 
 We can see that the customer base of this bike sharing company is unbalanced in terms of gender: a lot more Male riders than Female. However, Female riders have a longer trip duration on average, which probably also translates in higher NPV. Also, there's no big difference in trip duration when looking at user age. 
 
 Regarding the stations, we can see that 2 stations are the most popular for both starting and ending trips: Streeter Dr & Grand Ave and Clinton St & Washington Blvd. They must be located in very important spots of Chicago.
+
+This exercise has been quite interesting since I'm used to working with Python and it was nice to see that R has so many functionalities and packages. It also presents itself as a strong language for data analysis and modeling. The sintax was a little weird at first (specially when compared to traditional programming languages such as Java), but it was easy later to get the hang of it. I'd love to reach to Kaggle projects and see what kind of beautiful analysis and data viz can be made using it. 
